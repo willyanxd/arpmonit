@@ -91,7 +91,7 @@ install_system_deps() {
     # Install EPEL repository
     sudo dnf install -y epel-release
     
-    # Install required packages
+    # Install required packages including build tools for SQLite compilation
     sudo dnf install -y \
         curl \
         wget \
@@ -101,11 +101,14 @@ install_system_deps() {
         make \
         python3 \
         python3-pip \
+        python3-devel \
         sqlite \
         arp-scan \
         net-tools \
         iproute \
-        firewalld
+        firewalld \
+        nodejs \
+        npm
     
     log "System dependencies installed ✓"
 }
@@ -224,7 +227,9 @@ install_app_deps() {
     
     # Install backend dependencies
     cd "$app_dir/backend"
-    npm install
+    
+    # Force rebuild of better-sqlite3 from source
+    npm install --build-from-source
     
     log "Application dependencies installed ✓"
 }
@@ -379,15 +384,22 @@ if systemctl is-enabled arp-monitoring &> /dev/null; then
     sleep 2
     if systemctl is-active arp-monitoring &> /dev/null; then
         log "Backend service started successfully ✓"
-        info "Backend API: http://localhost:3001"
-        info "Health check: http://localhost:3001/api/health"
+        info "Backend API: http://0.0.0.0:3001"
+        info "Health check: http://0.0.0.0:3001/api/health"
+        
+        # Get local IP for external access
+        LOCAL_IP=$(hostname -I | awk '{print $1}')
+        if [[ -n "$LOCAL_IP" ]]; then
+            info "External access:"
+            info "  Backend: http://$LOCAL_IP:3001"
+            info "  Frontend: http://$LOCAL_IP:5173"
+        fi
         
         # Start frontend in development mode
         log "Starting frontend development server..."
         cd "$APP_DIR"
         
-        info "Frontend will be available at: http://localhost:5173"
-        info "Access from other machines: http://$(hostname -I | awk '{print $1}'):5173"
+        info "Frontend will be available at: http://0.0.0.0:5173"
         
         npm run dev:frontend
     else
@@ -565,6 +577,45 @@ ping -c 3 <gateway_ip>
 ip route show
 ```
 
+### 9. External Access Issues
+
+**Problem**: Cannot access from other machines
+
+**Solutions**:
+```bash
+# Check if server is binding to all interfaces
+netstat -tlnp | grep :3001
+# Should show 0.0.0.0:3001, not 127.0.0.1:3001
+
+# Test connectivity from external machine
+curl -v http://SERVER_IP:3001/api/health
+
+# Check firewall rules
+sudo firewall-cmd --list-ports
+sudo iptables -L
+
+# Verify CORS configuration in backend
+grep -n "origin" /opt/arp-monitoring/backend/src/app.js
+```
+
+### 10. SQLite Compilation Issues
+
+**Problem**: better-sqlite3 fails to install
+
+**Solutions**:
+```bash
+# Install build dependencies
+sudo dnf install -y gcc gcc-c++ make python3-devel
+
+# Rebuild from source
+cd /opt/arp-monitoring/backend
+npm rebuild better-sqlite3 --build-from-source
+
+# Or reinstall completely
+rm -rf node_modules package-lock.json
+npm install --build-from-source
+```
+
 ## Log Files
 
 - Application logs: `/var/log/arp-monitoring/app.log`
@@ -589,6 +640,9 @@ sudo journalctl -u arp-monitoring -f
 # Test API endpoint
 curl http://localhost:3001/api/health
 
+# Test external access
+curl http://$(hostname -I | awk '{print $1}'):3001/api/health
+
 # Check network interfaces
 ip addr show
 
@@ -601,6 +655,9 @@ sudo tcpdump -i any arp
 
 # Check open ports
 sudo netstat -tlnp | grep -E ':(3001|5173)'
+
+# Check firewall
+sudo firewall-cmd --list-all
 ```
 
 ## Getting Help
@@ -612,6 +669,7 @@ If you continue to experience issues:
 3. Ensure proper network configuration
 4. Test arp-scan functionality manually
 5. Check system resources (CPU, memory, disk)
+6. Verify external access with curl commands
 
 For additional support, please check the README.md file or create an issue in the project repository.
 EOF
@@ -691,6 +749,30 @@ sudo systemctl start arp-monitoring
 To access from other machines, use your server's IP address:
 - Frontend: http://YOUR_SERVER_IP:5173
 - Backend: http://YOUR_SERVER_IP:3001
+
+## External Access Configuration
+
+The application is configured to accept connections from external machines. The backend binds to `0.0.0.0:3001` and includes CORS configuration for common private network ranges.
+
+### Firewall Configuration
+
+The installer automatically opens the required ports:
+```bash
+sudo firewall-cmd --permanent --add-port=3001/tcp  # Backend API
+sudo firewall-cmd --permanent --add-port=5173/tcp  # Frontend
+sudo firewall-cmd --reload
+```
+
+### Testing External Access
+
+From another machine on the network:
+```bash
+# Test backend API
+curl http://SERVER_IP:3001/api/health
+
+# Access frontend
+http://SERVER_IP:5173
+```
 
 ## Usage
 
@@ -782,6 +864,9 @@ sudo arp-scan -l
 
 # Check network interfaces
 ip addr show
+
+# Test external access
+curl http://$(hostname -I | awk '{print $1}'):3001/api/health
 ```
 
 ## System Requirements
@@ -898,6 +983,9 @@ print_summary() {
     info "Frontend: http://$(hostname -I | awk '{print $1}'):5173"
     info "Backend: http://$(hostname -I | awk '{print $1}'):3001"
     echo
+    info "=== Test External Access ==="
+    info "curl http://$(hostname -I | awk '{print $1}'):3001/api/health"
+    echo
     info "=== Useful commands ==="
     info "Start: /opt/arp-monitoring/start.sh"
     info "Status: sudo systemctl status arp-monitoring"
@@ -941,4 +1029,3 @@ main() {
 
 # Run main function
 main "$@"
-EOF

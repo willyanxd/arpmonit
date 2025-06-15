@@ -36,14 +36,14 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     // Validate required fields
-    const { name, interface: iface, subnet } = req.body;
+    const { name, interface: networkInterface, subnet } = req.body;
     
-    if (!name || !iface || !subnet) {
+    if (!name || !networkInterface || !subnet) {
       return res.status(400).json({ message: 'Name, interface, and subnet are required' });
     }
 
     // Validate interface and subnet compatibility
-    const isValid = await NetworkService.validateInterfaceSubnet(iface, subnet);
+    const isValid = await NetworkService.validateInterfaceSubnet(networkInterface, subnet);
     if (!isValid) {
       return res.status(400).json({ 
         message: 'Interface does not have an IP address in the specified subnet' 
@@ -69,9 +69,9 @@ router.put('/:id', async (req, res) => {
     }
 
     // Validate interface and subnet if they're being updated
-    const { interface: iface, subnet } = req.body;
-    if (iface && subnet) {
-      const isValid = await NetworkService.validateInterfaceSubnet(iface, subnet);
+    const { interface: networkInterface, subnet } = req.body;
+    if (networkInterface && subnet) {
+      const isValid = await NetworkService.validateInterfaceSubnet(networkInterface, subnet);
       if (!isValid) {
         return res.status(400).json({ 
           message: 'Interface does not have an IP address in the specified subnet' 

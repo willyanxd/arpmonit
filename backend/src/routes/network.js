@@ -28,13 +28,13 @@ router.get('/interfaces/:name', async (req, res) => {
 // Validate interface and subnet compatibility
 router.post('/validate', async (req, res) => {
   try {
-    const { interface: iface, subnet } = req.body;
+    const { interface: networkInterface, subnet } = req.body;
     
-    if (!iface || !subnet) {
+    if (!networkInterface || !subnet) {
       return res.status(400).json({ message: 'Interface and subnet are required' });
     }
 
-    const isValid = await NetworkService.validateInterfaceSubnet(iface, subnet);
+    const isValid = await NetworkService.validateInterfaceSubnet(networkInterface, subnet);
     res.json({ valid: isValid });
   } catch (error) {
     console.error('Error validating interface/subnet:', error);

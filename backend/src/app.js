@@ -39,9 +39,18 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true
+  origin: [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    /^http:\/\/192\.168\.\d+\.\d+:5173$/,
+    /^http:\/\/10\.\d+\.\d+\.\d+:5173$/,
+    /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:5173$/
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
 app.use(express.json());
 
 // Request logging middleware
@@ -64,7 +73,9 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -98,6 +109,7 @@ async function startServer() {
       logger.info(`ARP Monitoring API server running on port ${PORT}`);
       logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
       logger.info('Server ready to accept connections from any IP address');
+      logger.info(`Health check: http://0.0.0.0:${PORT}/api/health`);
     });
 
   } catch (error) {

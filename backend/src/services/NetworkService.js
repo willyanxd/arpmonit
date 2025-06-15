@@ -163,7 +163,7 @@ export class NetworkService {
 
       // Convert subnet to numeric for comparison
       const subnetNetworkNum = this.ipToNumber(subnetNetwork);
-      const maskNum = (0xFFFFFFFF << (32 - sub netMaskBits)) >>> 0;
+      const maskNum = (0xFFFFFFFF << (32 - subnetMaskBits)) >>> 0;
 
       // Check each interface IP
       for (const address of interfaceInfo.addresses) {

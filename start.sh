@@ -71,16 +71,18 @@ log "Starting ARP Monitoring Application..."
 export NODE_ENV=development
 export VITE_API_URL=http://localhost:3001/api
 
-info "Backend API will be available at: http://localhost:3001"
-info "Frontend will be available at: http://localhost:5173"
-info "Health check: http://localhost:3001/api/health"
-
 # Get local IP for external access
 LOCAL_IP=$(hostname -I | awk '{print $1}')
+
+info "Backend API will be available at: http://0.0.0.0:3001"
+info "Frontend will be available at: http://0.0.0.0:5173"
+info "Health check: http://localhost:3001/api/health"
+
 if [[ -n "$LOCAL_IP" ]]; then
     info "Access from other machines:"
     info "  Frontend: http://$LOCAL_IP:5173"
     info "  Backend: http://$LOCAL_IP:3001"
+    info "  Health check: http://$LOCAL_IP:3001/api/health"
 fi
 
 echo
